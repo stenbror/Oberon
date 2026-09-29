@@ -81,6 +81,11 @@ enum AST {
     Relation_GreaterEqual(Box<AST>, Box<AST>),
     Relation_In(Box<AST>, Box<AST>),
     Relation_Is(Box<AST>, Box<AST>),
+    AddOperator_Plus(Box<AST>, Box<AST>),
+    AddOperator_Minus(Box<AST>, Box<AST>),
+    AddOperator_Or(Box<AST>, Box<AST>),
+    Unary_Plus(Box<AST>),
+    Unary_Minus(Box<AST>)
 }
 
 
@@ -91,7 +96,8 @@ pub trait parser_rules {
 
     /* Expression parse rules */
     fn expression(&mut self) -> Result<Box<AST>, String>;
-    fn simple_expression(&mut self) -> Result<Box<AST>, String>;   
+    fn simple_expression(&mut self) -> Result<Box<AST>, String>;
+    fn term(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -114,7 +120,7 @@ impl parser_rules for Parser {
     }
 
     /* Expression rules */
-    
+
     fn expression(&mut self) -> Result<Box<AST>, String> {
         let mut left = self.simple_expression()?; 
         match self.symbol {
@@ -156,6 +162,35 @@ impl parser_rules for Parser {
     }
 
     fn simple_expression(&mut self) -> Result<Box<AST>, String> {
+        let mut left = match self.symbol {
+            Symbols::Plus => {
+                self.advance();
+                Box::new(AST::Unary_Plus(self.term()?))
+            },
+            Symbols::Minus => {
+                self.advance();
+                Box::new(AST::Unary_Minus(self.term()?))
+            },
+            _ => self.term()?
+        };
+        match self.symbol {
+            Symbols::Plus => {
+                self.advance();
+                Ok(Box::new(AST::AddOperator_Plus(left, self.term()?)))
+            },
+            Symbols::Minus => {
+                self.advance();
+                Ok(Box::new(AST::AddOperator_Minus(left, self.term()?)))
+            },
+            Symbols::Or => {
+                self.advance();
+                Ok(Box::new(AST::AddOperator_Or(left, self.term()?)))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn term(&mut self) -> Result<Box<AST>, String> {
         Err("".to_string())
     }
 }
