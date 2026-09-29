@@ -138,6 +138,20 @@ pub trait ParseRules {
     fn expr_list(&mut self) -> Result<Box<AST>, String>;
     fn actual_parameters(&mut self) -> Result<Box<AST>, String>;
     fn qualident(&mut self) -> Result<Box<AST>, String>;
+
+    /* Statement parse rules */
+    fn statement(&mut self) -> Result<Box<AST>, String>;
+    fn if_statement(&mut self) -> Result<Box<AST>, String>;
+    fn case_tatement(&mut self) -> Result<Box<AST>, String>;
+    fn with_statement(&mut self) -> Result<Box<AST>, String>;
+    fn loop_statement(&mut self) -> Result<Box<AST>, String>;
+    fn exit_statement(&mut self) -> Result<Box<AST>, String>;
+    fn return_statement(&mut self) -> Result<Box<AST>, String>;
+    fn while_statement(&mut self) -> Result<Box<AST>, String>;
+    fn repeat_statement(&mut self) -> Result<Box<AST>, String>;
+    fn for_statement(&mut self) -> Result<Box<AST>, String>;
+    fn procedure_call(&mut self) -> Result<Box<AST>, String>;
+    fn assignment(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -509,6 +523,68 @@ impl ParseRules for Parser {
             },
             _ => Ok(Box::new(AST::Name(first_line, first_col, first_name)))
         }
+    }
+
+    /* Statement rules */
+
+    fn statement(&mut self) -> Result<Box<AST>, String> {
+        match self.symbol {
+            Symbols::Procedure => self.procedure_call(),
+            Symbols::If => self.if_statement(),
+            Symbols::Case => self.case_tatement(),
+            Symbols::With => self.with_statement(),
+            Symbols::Loop => self.loop_statement(),
+            Symbols::Exit => self.exit_statement(),
+            Symbols::Return => self.return_statement(),
+            Symbols::While => self.while_statement(),
+            Symbols::Repeat => self.repeat_statement(),
+            Symbols::For => self.for_statement(),
+            _ => self.assignment()
+        }
+    }
+
+    fn if_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn case_tatement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn with_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn loop_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn exit_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn return_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn while_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn repeat_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn for_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn procedure_call(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn assignment(&mut self) -> Result<Box<AST>, String> {
+        todo!()
     }
 
     
