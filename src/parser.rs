@@ -68,6 +68,10 @@ enum Symbols {
     Ambersand, // &
 
     Ident,
+    Number,
+    String,
+    HexString,
+    HexChar,
 
 
     Unknown
@@ -93,7 +97,16 @@ enum AST {
     MulOperator_Div(Box<AST>, Box<AST>),
     MulOperator_Mod(Box<AST>, Box<AST>),
     MulOperator_AmbersAnd(Box<AST>, Box<AST>),
-    Factor_Tilde(Box<AST>)
+    Factor_Tilde(Box<AST>),
+    Literal_True(u32, u32),
+    Literal_False(u32, u32),
+    Literal_Nil(u32, u32),
+    Literal_Number(u32, u32, String),
+    Literal_String(u32, u32, String),
+    Literal_HexString(u32, u32, String),
+    Literal_HexChar(u32, u32, String),
+    Set(Vec<Box<AST>>),
+    Element(Box<AST>, Box<AST>)
 }
 
 
@@ -108,6 +121,8 @@ pub trait parser_rules {
     fn term(&mut self) -> Result<Box<AST>, String>;
     fn factor(&mut self) -> Result<Box<AST>, String>;
     fn literal(&mut self) -> Result<Box<AST>, String>;
+    fn set(&mut self) -> Result<Box<AST>, String>;
+    fn element(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -260,7 +275,86 @@ impl parser_rules for Parser {
     }
 
     fn literal(&mut self) -> Result<Box<AST>, String> {
-        Err("".to_string()) 
+        let line = self.line; let col = self.column;
+        match self.symbol {
+            Symbols::Number => {
+                let buffer = self.buffer.clone();
+                self.advance();
+                Ok(Box::new(AST::Literal_Number(line, col, buffer)))
+            },
+            Symbols::String => {
+                let buffer = self.buffer.clone();
+                self.advance();
+                Ok(Box::new(AST::Literal_String(line, col, buffer)))
+            },
+            Symbols::HexString => {
+                let buffer = self.buffer.clone();
+                self.advance();
+                Ok(Box::new(AST::Literal_HexString(line, col, buffer)))
+            },
+            Symbols::HexChar => {
+                let buffer = self.buffer.clone();
+                self.advance();
+                Ok(Box::new(AST::Literal_HexChar(line, col, buffer)))
+            },
+            Symbols::Nil => {
+                self.advance();
+                Ok(Box::new(AST::Literal_Nil(line, col)))
+            },
+            Symbols::True => {
+                self.advance();
+                Ok(Box::new(AST::Literal_True(line, col)))
+            },
+            Symbols::False => {
+                self.advance();
+                Ok(Box::new(AST::Literal_False(line, col)))
+            },
+            Symbols::LeftCurly => {
+                self.set()
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing literal.", self.line, self.column, self.source))
+        }
+    }
+
+    fn set(&mut self) -> Result<Box<AST>, String> {
+        let mut elements = Vec::<Box<AST>>::new();
+        self.advance();
+        match self.symbol {
+            Symbols::RightCurly => {
+                self.advance();
+                Ok(Box::new(AST::Set(elements)))
+            },
+            _ => {
+                elements.push(self.element()?);
+                loop {
+                    match self.symbol {
+                        Symbols::Comma => {
+                            self.advance();
+                            elements.push(self.element()?);
+                        },
+                        _ => break
+                    }
+                }
+                match self.symbol {
+                    Symbols::RightCurly => {
+                        self.advance();
+                        Ok(Box::new(AST::Set(elements)))
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing closing parenthesis in set.", self.line, self.column, self.source))
+                }
+            }
+        }
+    }
+
+    fn element(&mut self) -> Result<Box<AST>, String> {
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Upto => {
+                self.advance();
+                Ok(Box::new(AST::Element(left, self.expression()?)))
+            },
+            _ => Ok(left)
+        }
     }
 
     
