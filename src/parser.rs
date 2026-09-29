@@ -66,6 +66,7 @@ enum Symbols {
     Bar,
     Tilde,
     Ambersand, // &
+    Period,
 
     Ident,
     Number,
@@ -109,12 +110,18 @@ enum AST {
     Element(Box<AST>, Box<AST>),
     DesignatorWithActualParameters(Box<AST>, Box<AST>),
     ExprList(Vec<Box<AST>>),
-    ActualParameters(Option<Box<AST>>)
+    ActualParameters(Option<Box<AST>>),
+    Qualident(u32, u32, String, u32, u32, String),
+    Name(u32, u32, String),
+    Designator(Box<AST>, Box<AST>),
+    Arrow,
+    Index(Option<Box<AST>>),
+    Call(Option<Box<AST>>)
 }
 
 
 // Trait for Parser and Lexical analyzer methods //////////////////////////////////////////////////
-pub trait parser_rules {
+pub trait ParseRules {
     fn new(source: String) -> Parser;
     fn advance(&mut self) -> ();
 
@@ -130,6 +137,7 @@ pub trait parser_rules {
     fn selector(&mut self) -> Result<Box<AST>, String>;
     fn expr_list(&mut self) -> Result<Box<AST>, String>;
     fn actual_parameters(&mut self) -> Result<Box<AST>, String>;
+    fn qualident(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -144,7 +152,7 @@ pub struct Parser {
 
 
 // Oberon language parser and tokenizer methods ///////////////////////////////////////////////////
-impl parser_rules for Parser {
+impl ParseRules for Parser {
     fn new(source: String) -> Self {
         Parser {
             symbol: Symbols::Unknown,
@@ -372,11 +380,76 @@ impl parser_rules for Parser {
     }
 
     fn designator(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        let left = self.qualident()?;
+        match self.symbol {
+            Symbols::Period |
+            Symbols::Arrow |
+            Symbols::LeftBracket |
+            Symbols::LeftParen => {
+                let right = self.selector()?;
+                Ok(Box::new(AST::Designator(left, right)))
+            },
+            _ => Ok(left)
+        }
     }
 
     fn selector(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        match self.symbol {
+            Symbols::Arrow => {
+                self.advance();
+                Ok(Box::new(AST::Arrow))
+            },
+            Symbols::Period => {
+                self.advance();
+                match self.symbol {
+                    Symbols::Ident => {
+                        let line = self.line; let col = self.column; let buffer = self.buffer.clone();
+                        self.advance();
+                        Ok(Box::new(AST::Name(line, col, buffer)))
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name after `.` in selector.", self.line, self.column, self.source))
+                }
+            },
+            Symbols::LeftBracket => {
+                self.advance();
+                match self.symbol {
+                    Symbols::RightBracket => {
+                        self.advance();
+                        Ok(Box::new(AST::Index(None)))
+                    },
+                    _ => {
+                        let node = self.expr_list()?;
+                        match self.symbol {
+                            Symbols::RightBracket => {
+                                self.advance();
+                                Ok(Box::new(AST::Index(Some(node))))
+                            },
+                            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `]` in indexing.", self.line, self.column, self.source))
+                        }
+                    }
+                }
+            },
+            _ => {
+                /* Must be `(´ */
+                self.advance();
+                match self.symbol {
+                    Symbols::RightParen => {
+                        self.advance();
+                        Ok(Box::new(AST::Call(None)))
+                    },
+                    _ => {
+                        let node = self.qualident()?;
+                        match self.symbol {
+                            Symbols::RightParen => {
+                                self.advance();
+                                Ok(Box::new(AST::Call(Some(node))))
+                            },
+                            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `]` in indexing.", self.line, self.column, self.source))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn expr_list(&mut self) -> Result<Box<AST>, String> {
@@ -416,6 +489,25 @@ impl parser_rules for Parser {
                     _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing closing parenthesis in parameters.", self.line, self.column, self.source))
                 }
             }
+        }
+    }
+
+    fn qualident(&mut self) -> Result<Box<AST>, String> {
+        let first_line = self.line; let first_col = self.column; let first_name = self.buffer.clone();
+        self.advance();
+        match self.symbol {
+            Symbols::Period => {
+                self.advance();
+                match self.symbol {
+                    Symbols::Ident => {
+                        let second_line = self.line; let second_col = self.column; let second_name = self.buffer.clone();
+                        self.advance();
+                        Ok(Box::new(AST::Qualident(first_line, first_col, first_name, second_line, second_col, second_name)))
+                    },
+                     _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name after `.`in qualident.", self.line, self.column, self.source))   
+                }
+            },
+            _ => Ok(Box::new(AST::Name(first_line, first_col, first_name)))
         }
     }
 

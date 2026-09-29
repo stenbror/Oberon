@@ -1,7 +1,7 @@
 
 mod parser;
 
-use crate::parser::parser_rules;
+use crate::parser::ParseRules;
 
 fn main() {
 
