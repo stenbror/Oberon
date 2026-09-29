@@ -118,6 +118,8 @@ enum AST {
     Index(Option<Box<AST>>),
     Call(Option<Box<AST>>),
     StatementSequence(Vec<Box<AST>>),
+    Assignment(Box<AST>, Box<AST>),
+    ProcedureCall(Box<AST>, Box<AST>),
 }
 
 
@@ -531,7 +533,6 @@ impl ParseRules for Parser {
 
     fn statement(&mut self) -> Result<Box<AST>, String> {
         match self.symbol {
-            Symbols::Procedure => self.procedure_call(),
             Symbols::If => self.if_statement(),
             Symbols::Case => self.case_tatement(),
             Symbols::With => self.with_statement(),
@@ -586,7 +587,20 @@ impl ParseRules for Parser {
     }
 
     fn assignment(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        let left = self.designator()?;
+        match self.symbol {
+            Symbols::ColonAssign => {
+                self.advance();
+                Ok(Box::new(AST::Assignment(left, self.expression()?)))
+            },
+            Symbols::LeftParen => {
+                let right = self.actual_parameters()?;
+                Ok(Box::new(AST::ProcedureCall(left, right)))
+            },
+            _ => {
+                Ok(left) /* procedure call without argument */
+            }
+        }
     }
 
     fn statement_sequence(&mut self) -> Result<Box<AST>, String> {
@@ -602,7 +616,6 @@ impl ParseRules for Parser {
             }
             match self.symbol {
                 Symbols::Ident |
-                Symbols::Procedure |
                 Symbols::If |
                 Symbols::Case |
                 Symbols::With |
