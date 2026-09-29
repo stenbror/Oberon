@@ -67,6 +67,8 @@ enum Symbols {
     Tilde,
     Ambersand, // &
 
+    Ident,
+
 
     Unknown
 }
@@ -91,12 +93,13 @@ enum AST {
     MulOperator_Div(Box<AST>, Box<AST>),
     MulOperator_Mod(Box<AST>, Box<AST>),
     MulOperator_AmbersAnd(Box<AST>, Box<AST>),
+    Factor_Tilde(Box<AST>)
 }
 
 
 // Trait for Parser and Lexical analyzer methods //////////////////////////////////////////////////
 pub trait parser_rules {
-    fn new() -> Parser;
+    fn new(source: String) -> Parser;
     fn advance(&mut self) -> ();
 
     /* Expression parse rules */
@@ -104,20 +107,29 @@ pub trait parser_rules {
     fn simple_expression(&mut self) -> Result<Box<AST>, String>;
     fn term(&mut self) -> Result<Box<AST>, String>;
     fn factor(&mut self) -> Result<Box<AST>, String>;
+    fn literal(&mut self) -> Result<Box<AST>, String>;
 }
 
 
 // Parser for oberon //////////////////////////////////////////////////////////////////////////////
 pub struct Parser {
-    symbol: Symbols
+    symbol: Symbols,
+    line: u32,
+    column: u32,
+    buffer: String,
+    source: String
 }
 
 
 // Oberon language parser and tokenizer methods ///////////////////////////////////////////////////
 impl parser_rules for Parser {
-    fn new() -> Self {
+    fn new(source: String) -> Self {
         Parser {
-            symbol: Symbols::Unknown
+            symbol: Symbols::Unknown,
+            line: 1,
+            column: 1,
+            buffer: "".to_string(),
+            source: source
         }
     }
 
@@ -224,6 +236,32 @@ impl parser_rules for Parser {
     }
 
     fn factor(&mut self) -> Result<Box<AST>, String> {
-        Err("".to_string())   
+        match self.symbol {
+            Symbols::Tilde => {
+                self.advance();
+                Ok(Box::new(AST::Factor_Tilde(self.factor()?)))
+            },
+            Symbols::LeftParen => {
+                self.advance();
+                let left = self.expression()?;
+                match self.symbol {
+                    Symbols::RightParen => {
+                        self.advance();
+                        Ok(left)
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing closing `)` in expression.", self.line, self.column, self.source))
+                }
+            },
+            Symbols::Ident => {
+                todo!()
+            }
+            _ => self.literal()
+        }
     }
+
+    fn literal(&mut self) -> Result<Box<AST>, String> {
+        Err("".to_string()) 
+    }
+
+    
 }
