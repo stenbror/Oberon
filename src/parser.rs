@@ -85,7 +85,12 @@ enum AST {
     AddOperator_Minus(Box<AST>, Box<AST>),
     AddOperator_Or(Box<AST>, Box<AST>),
     Unary_Plus(Box<AST>),
-    Unary_Minus(Box<AST>)
+    Unary_Minus(Box<AST>),
+    MulOperator_Multiply(Box<AST>, Box<AST>),
+    MulOperator_Slash(Box<AST>, Box<AST>),
+    MulOperator_Div(Box<AST>, Box<AST>),
+    MulOperator_Mod(Box<AST>, Box<AST>),
+    MulOperator_AmbersAnd(Box<AST>, Box<AST>),
 }
 
 
@@ -98,6 +103,7 @@ pub trait parser_rules {
     fn expression(&mut self) -> Result<Box<AST>, String>;
     fn simple_expression(&mut self) -> Result<Box<AST>, String>;
     fn term(&mut self) -> Result<Box<AST>, String>;
+    fn factor(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -122,7 +128,7 @@ impl parser_rules for Parser {
     /* Expression rules */
 
     fn expression(&mut self) -> Result<Box<AST>, String> {
-        let mut left = self.simple_expression()?; 
+        let left = self.simple_expression()?; 
         match self.symbol {
             Symbols::Equal => {
                 self.advance();
@@ -162,7 +168,7 @@ impl parser_rules for Parser {
     }
 
     fn simple_expression(&mut self) -> Result<Box<AST>, String> {
-        let mut left = match self.symbol {
+        let left = match self.symbol {
             Symbols::Plus => {
                 self.advance();
                 Box::new(AST::Unary_Plus(self.term()?))
@@ -191,6 +197,33 @@ impl parser_rules for Parser {
     }
 
     fn term(&mut self) -> Result<Box<AST>, String> {
-        Err("".to_string())
+        let left = self.factor()?;
+        match self.symbol {
+            Symbols::Multiply => {
+                self.advance();
+                Ok(Box::new(AST::MulOperator_Multiply(left, self.factor()?)))
+            },
+            Symbols::Slash => {
+                self.advance();
+                Ok(Box::new(AST::MulOperator_Slash(left, self.factor()?)))
+            },
+            Symbols::Div => {
+                self.advance();
+                Ok(Box::new(AST::MulOperator_Div(left, self.factor()?)))
+            },
+            Symbols::Mod => {
+                self.advance();
+                Ok(Box::new(AST::MulOperator_Mod(left, self.factor()?)))
+            },
+            Symbols::Ambersand => {
+                self.advance();
+                Ok(Box::new(AST::MulOperator_AmbersAnd(left, self.factor()?)))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn factor(&mut self) -> Result<Box<AST>, String> {
+        Err("".to_string())   
     }
 }
