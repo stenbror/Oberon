@@ -106,7 +106,9 @@ enum AST {
     Literal_HexString(u32, u32, String),
     Literal_HexChar(u32, u32, String),
     Set(Vec<Box<AST>>),
-    Element(Box<AST>, Box<AST>)
+    Element(Box<AST>, Box<AST>),
+    DesignatorWithActualParameters(Box<AST>, Box<AST>),
+    ExprList(Vec<Box<AST>>)
 }
 
 
@@ -123,6 +125,10 @@ pub trait parser_rules {
     fn literal(&mut self) -> Result<Box<AST>, String>;
     fn set(&mut self) -> Result<Box<AST>, String>;
     fn element(&mut self) -> Result<Box<AST>, String>;
+    fn designator(&mut self) -> Result<Box<AST>, String>;
+    fn selector(&mut self) -> Result<Box<AST>, String>;
+    fn expr_list(&mut self) -> Result<Box<AST>, String>;
+    fn actual_parameters(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -268,7 +274,14 @@ impl parser_rules for Parser {
                 }
             },
             Symbols::Ident => {
-                todo!()
+                let left = self.designator()?;
+                match self.symbol {
+                    Symbols::LeftParen => {
+                        let right = self.actual_parameters()?;
+                        Ok(Box::new(AST::DesignatorWithActualParameters(left, right)))
+                    },
+                    _ => Ok(left)
+                }
             }
             _ => self.literal()
         }
@@ -355,6 +368,38 @@ impl parser_rules for Parser {
             },
             _ => Ok(left)
         }
+    }
+
+    fn designator(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn selector(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn expr_list(&mut self) -> Result<Box<AST>, String> {
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Comma => {
+                let mut elements = Vec::<Box<AST>>::new();
+                elements.push(left);
+                self.advance();
+                loop {
+                    elements.push(self.expression()?);
+                    match self.symbol {
+                        Symbols::Comma => self.advance(),
+                        _ => { break; }
+                    }
+                }
+                Ok(Box::new(AST::ExprList(elements)))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn actual_parameters(&mut self) -> Result<Box<AST>, String> {
+        todo!()
     }
 
     
