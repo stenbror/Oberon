@@ -108,7 +108,8 @@ enum AST {
     Set(Vec<Box<AST>>),
     Element(Box<AST>, Box<AST>),
     DesignatorWithActualParameters(Box<AST>, Box<AST>),
-    ExprList(Vec<Box<AST>>)
+    ExprList(Vec<Box<AST>>),
+    ActualParameters(Option<Box<AST>>)
 }
 
 
@@ -399,7 +400,23 @@ impl parser_rules for Parser {
     }
 
     fn actual_parameters(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        match self.symbol {
+            Symbols::RightParen => {
+                self.advance();
+                Ok(Box::new(AST::ActualParameters(None)))
+            },
+            _ => {
+                let left = self.expr_list()?;
+                match self.symbol {
+                    Symbols::RightParen => {
+                        self.advance();
+                        Ok(Box::new(AST::ActualParameters(Some(left))))
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing closing parenthesis in parameters.", self.line, self.column, self.source))
+                }
+            }
+        }
     }
 
     
