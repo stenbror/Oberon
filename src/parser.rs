@@ -116,7 +116,8 @@ enum AST {
     Designator(Box<AST>, Box<AST>),
     Arrow,
     Index(Option<Box<AST>>),
-    Call(Option<Box<AST>>)
+    Call(Option<Box<AST>>),
+    StatementSequence(Vec<Box<AST>>),
 }
 
 
@@ -152,6 +153,7 @@ pub trait ParseRules {
     fn for_statement(&mut self) -> Result<Box<AST>, String>;
     fn procedure_call(&mut self) -> Result<Box<AST>, String>;
     fn assignment(&mut self) -> Result<Box<AST>, String>;
+    fn statement_sequence(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -585,6 +587,43 @@ impl ParseRules for Parser {
 
     fn assignment(&mut self) -> Result<Box<AST>, String> {
         todo!()
+    }
+
+    fn statement_sequence(&mut self) -> Result<Box<AST>, String> {
+        let mut nodes = Vec::<Box<AST>>::new();
+        nodes.push(self.statement()?);
+
+        loop {
+            match self.symbol {
+                Symbols::Semicolon => {
+                    self.advance();
+                },
+                _ => ()
+            }
+            match self.symbol {
+                Symbols::Ident |
+                Symbols::Procedure |
+                Symbols::If |
+                Symbols::Case |
+                Symbols::With |
+                Symbols::Loop |
+                Symbols::Exit |
+                Symbols::Return |
+                Symbols::While |
+                Symbols::Repeat |
+                Symbols::For => {
+                    nodes.push(self.statement()?)
+                },
+                _ => {
+                    break
+                }
+            }
+        }
+
+        match nodes.len() {
+             1 => nodes.pop().ok_or(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing statement in sequence.", self.line, self.column, self.source)),
+             _ => Ok(Box::new(AST::StatementSequence(nodes)))
+        }
     }
 
     
