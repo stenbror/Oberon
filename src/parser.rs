@@ -581,7 +581,16 @@ impl ParseRules for Parser {
     }
 
     fn elsif_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Then => {
+                self.advance();
+                let right = self.statement_sequence()?;
+                Ok(Box::new(AST::ElsifStatement(left, right)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `THEM` in elsif statement.", self.line, self.column, self.source))
+        }
     }
 
     fn else_statement(&mut self) -> Result<Box<AST>, String> {
