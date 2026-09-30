@@ -612,7 +612,35 @@ impl ParseRules for Parser {
     }
 
     fn with_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        let mut elements = Vec::<Box<AST>>::new();
+        elements.push(self.with_element(true)?);
+        loop {
+            match self.symbol {
+                Symbols::Else |
+                Symbols::End => {
+                    break;
+                },
+                _ => {
+                    elements.push(self.with_element(false)?);
+                }
+            }
+        }
+
+        let element = match self.symbol {
+            Symbols::Else => {
+                Some(self.else_statement()?)
+            }
+            _ => None
+        };
+
+        match self.symbol {
+            Symbols::End => {
+                self.advance();
+                Ok(Box::new(AST::WithStatement(elements, element)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `END` in with statement.", self.line, self.column, self.source))
+        }
     }
 
     fn with_element(&mut self, is_first: bool) -> Result<Box<AST>, String> {
