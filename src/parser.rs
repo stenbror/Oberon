@@ -131,6 +131,7 @@ pub enum AST {
     WithElement(Box<AST>, Box<AST>), 
     Guard(Box<AST>, Box<AST>),
     WhileStatement(Box<AST>, Box<AST>, Option<Box<AST>>),
+    RepeatStatement(Box<AST>, Box<AST>),
 }
 
 
@@ -723,7 +724,16 @@ impl ParseRules for Parser {
     }
 
     fn repeat_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        let left = self.statement_sequence()?;
+        match self.symbol {
+            Symbols::Until => {
+                self.advance();
+                Ok(Box::new(AST::RepeatStatement(left, self.expression()?)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `UNTIL` in repeat statement.", self.line, self.column, self.source))
+        }
+        
     }
 
     fn for_statement(&mut self) -> Result<Box<AST>, String> {
