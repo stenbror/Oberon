@@ -130,6 +130,7 @@ pub enum AST {
     WithStatement(Vec<Box<AST>>, Option<Box<AST>>),
     WithElement(Box<AST>, Box<AST>), 
     Guard(Box<AST>, Box<AST>),
+    WhileStatement(Box<AST>, Box<AST>, Option<Box<AST>>),
 }
 
 
@@ -697,7 +698,28 @@ impl ParseRules for Parser {
     }
 
     fn while_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Do => {
+                self.advance();
+                let right = self.statement_sequence()?;
+                let next = match self.symbol {
+                    Symbols::Else => {
+                        Some(self.else_statement()?)
+                    },
+                    _ => None
+                };
+                match self.symbol {
+                    Symbols::End => {
+                        self.advance();
+                        Ok(Box::new(AST::WhileStatement(left, right, next)))
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `END` in while statement.", self.line, self.column, self.source))
+                }
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `DO` in while statement.", self.line, self.column, self.source))
+        }
     }
 
     fn repeat_statement(&mut self) -> Result<Box<AST>, String> {
