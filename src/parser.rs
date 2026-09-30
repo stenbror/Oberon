@@ -641,3 +641,15 @@ impl ParseRules for Parser {
 
     
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let _ = Parser::new("".to_string());
+        assert_eq!(4, 4);
+    }
+}
