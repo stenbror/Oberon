@@ -134,7 +134,11 @@ pub enum AST {
     RepeatStatement(Box<AST>, Box<AST>),
     ReturnStatement(Option<Box<AST>>),
     Exit,
-    Continue
+    Continue,
+    CaseStatement(Box<AST>, Vec<Box<AST>>, Option<Box<AST>>),
+    CaseElement(Box<AST>, Box<AST>),
+    CaseLabelList(Vec<Box<AST>>),
+    CaseLabelRange(Box<AST>, Box<AST>)
 }
 
 
@@ -162,12 +166,16 @@ pub trait ParseRules {
     fn if_statement(&mut self) -> Result<Box<AST>, String>;
     fn elsif_statement(&mut self) -> Result<Box<AST>, String>;
     fn else_statement(&mut self) -> Result<Box<AST>, String>;
-    fn case_tatement(&mut self) -> Result<Box<AST>, String>;
+    fn case_statement(&mut self) -> Result<Box<AST>, String>;
+    fn case_statement_element(&mut self) -> Result<Box<AST>, String>;
+    fn case_statement_label_list(&mut self) -> Result<Box<AST>, String>;
+    fn case_statement_label_range(&mut self) -> Result<Box<AST>, String>;
     fn with_statement(&mut self) -> Result<Box<AST>, String>;
     fn with_element(&mut self, is_first: bool) -> Result<Box<AST>, String>;
     fn guard(&mut self) -> Result<Box<AST>, String>;
     fn loop_statement(&mut self) -> Result<Box<AST>, String>;
     fn exit_statement(&mut self) -> Result<Box<AST>, String>;
+    fn continue_statement(&mut self) -> Result<Box<AST>, String>;
     fn return_statement(&mut self) -> Result<Box<AST>, String>;
     fn while_statement(&mut self) -> Result<Box<AST>, String>;
     fn repeat_statement(&mut self) -> Result<Box<AST>, String>;
@@ -552,7 +560,7 @@ impl ParseRules for Parser {
     fn statement(&mut self) -> Result<Box<AST>, String> {
         match self.symbol {
             Symbols::If => self.if_statement(),
-            Symbols::Case => self.case_tatement(),
+            Symbols::Case => self.case_statement(),
             Symbols::With => self.with_statement(),
             Symbols::Loop => self.loop_statement(),
             Symbols::Exit => self.exit_statement(),
@@ -561,6 +569,7 @@ impl ParseRules for Parser {
             Symbols::Repeat => self.repeat_statement(),
             Symbols::For => self.for_statement(),
             Symbols::Ident => self.assignment(),
+            Symbols::Continue => self.continue_statement(),
             _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing valid statement(s).", self.line, self.column, self.source))
         }
     }
@@ -612,8 +621,83 @@ impl ParseRules for Parser {
         Ok(Box::new(AST::ElseStatement(self.statement_sequence()?)))
     }
 
-    fn case_tatement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+    fn case_statement(&mut self) -> Result<Box<AST>, String> {
+        self.advance();
+        let left = self.expression()?;
+        let mut elements = Vec::<Box<AST>>::new();
+        match self.symbol {
+            Symbols::Of => {
+                self.advance();
+                match self.symbol {
+                    Symbols::Bar => {
+                        self.advance();
+                    },
+                    _ => ()
+                }
+                elements.push(self.case_statement_element()?);
+                loop {
+                    match self.symbol {
+                        Symbols::Bar => {
+                            elements.push(self.case_statement_element()?);
+                        },
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                let element = match self.symbol {
+                    Symbols::Else => Some(self.else_statement()?),
+                    _ => None
+                };
+                match self.symbol {
+                    Symbols::End => {
+                        self.advance();
+                        Ok(Box::new(AST::CaseStatement(left, elements, element)))
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `END` in case statement.", self.line, self.column, self.source))
+                }
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `OF` in case statement.", self.line, self.column, self.source))
+        }
+    }
+
+    fn case_statement_element(&mut self) -> Result<Box<AST>, String> {
+        let left = self.case_statement_label_list()?;
+        match self.symbol {
+            Symbols::Colon => {
+                self.advance();
+                Ok(Box::new(AST::CaseElement(left, self.statement_sequence()?)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `:` in `case` statement.", self.line, self.column, self.source))
+        }
+    }
+
+    fn case_statement_label_list(&mut self) -> Result<Box<AST>, String> {
+        let mut elements = Vec::<Box<AST>>::new();
+        elements.push(self.case_statement_label_range()?);
+        loop {
+            match self.symbol {
+                Symbols::Comma => {
+                    self.advance();
+                    elements.push(self.case_statement_label_range()?);  
+                },
+                _ => {
+                    break;
+                }
+            }
+        }
+        Ok(Box::new(AST::CaseLabelList(elements)))
+    }
+
+    fn case_statement_label_range(&mut self) -> Result<Box<AST>, String> {
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Upto => {
+                self.advance();
+                Ok(Box::new(AST::CaseLabelRange(left, self.expression()?)))
+            },
+            _ => Ok(left)
+        }
     }
 
     fn with_statement(&mut self) -> Result<Box<AST>, String> {
@@ -696,6 +780,11 @@ impl ParseRules for Parser {
     fn exit_statement(&mut self) -> Result<Box<AST>, String> {
         self.advance();
         Ok(Box::new(AST::Exit))
+    }
+
+    fn continue_statement(&mut self) -> Result<Box<AST>, String> {
+        self.advance();
+        Ok(Box::new(AST::Continue))
     }
 
     fn return_statement(&mut self) -> Result<Box<AST>, String> {
