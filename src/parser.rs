@@ -124,6 +124,7 @@ pub enum AST {
     IfStatement(Box<AST>, Box<AST>, Vec<Box<AST>>, Option<Box<AST>>),
     ElsifStatement(Box<AST>, Box<AST>),
     ElseStatement(Box<AST>),
+    ForStatement(Box<AST>, Box<AST>, Box<AST>, Option<Box<AST>>, Box<AST>),
 }
 
 
@@ -547,7 +548,8 @@ impl ParseRules for Parser {
             Symbols::While => self.while_statement(),
             Symbols::Repeat => self.repeat_statement(),
             Symbols::For => self.for_statement(),
-            _ => self.assignment()
+            Symbols::Ident => self.assignment(),
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing valid statement(s).", self.line, self.column, self.source))
         }
     }
 
@@ -635,7 +637,49 @@ impl ParseRules for Parser {
     }
 
     fn for_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        match self.symbol {
+            Symbols::Ident => {
+                let name = Box::new(AST::Name(self.line, self.column, self.buffer.clone()));
+                self.advance();
+                match self.symbol {
+                    Symbols::ColonAssign => {
+                        self.advance();
+                        let left = self.expression()?;
+                        match self.symbol {
+                            Symbols::To => {
+                                self.advance();
+                                let right = self.expression()?;
+                                let next = match self.symbol {
+                                    Symbols::By => {
+                                        self.advance();
+                                        Some(self.expression()?)
+                                    },
+                                    _ => None
+                                };
+                                match self.symbol {
+                                    Symbols::Do => {
+                                        self.advance();
+                                        let body = self.statement_sequence()?;
+                                        match self.symbol {
+                                            Symbols::End => {
+                                                self.advance();
+                                                Ok(Box::new(AST::ForStatement(name, left, right, next, body)))
+                                            },
+                                            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `END` in `FOR` statement.", self.line, self.column, self.source))
+                                        }
+                                    },
+                                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `DO` in `FOR` statement.", self.line, self.column, self.source))
+                                }                        
+                            },
+                            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `TO` in `FOR` statement.", self.line, self.column, self.source))
+                        }
+                    },
+                    _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `:=` in `FOR` statement.", self.line, self.column, self.source))
+                }
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name in `FOR` statement.", self.line, self.column, self.source))
+        }
     }
 
     fn assignment(&mut self) -> Result<Box<AST>, String> {
