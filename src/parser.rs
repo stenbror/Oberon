@@ -594,7 +594,8 @@ impl ParseRules for Parser {
     }
 
     fn else_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        Ok(Box::new(AST::ElseStatement(self.statement_sequence()?)))
     }
 
     fn case_tatement(&mut self) -> Result<Box<AST>, String> {
