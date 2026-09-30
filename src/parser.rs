@@ -125,6 +125,9 @@ pub enum AST {
     ElsifStatement(Box<AST>, Box<AST>),
     ElseStatement(Box<AST>),
     ForStatement(Box<AST>, Box<AST>, Box<AST>, Option<Box<AST>>, Box<AST>),
+    WithStatement(Vec<Box<AST>>, Option<Box<AST>>),
+    WithElement(Box<AST>, Box<AST>), 
+    Guard(Box<AST>, Box<AST>),
 }
 
 
@@ -154,6 +157,8 @@ pub trait ParseRules {
     fn else_statement(&mut self) -> Result<Box<AST>, String>;
     fn case_tatement(&mut self) -> Result<Box<AST>, String>;
     fn with_statement(&mut self) -> Result<Box<AST>, String>;
+    fn with_element(&mut self) -> Result<Box<AST>, String>;
+    fn guard(&mut self) -> Result<Box<AST>, String>;
     fn loop_statement(&mut self) -> Result<Box<AST>, String>;
     fn exit_statement(&mut self) -> Result<Box<AST>, String>;
     fn return_statement(&mut self) -> Result<Box<AST>, String>;
@@ -606,6 +611,21 @@ impl ParseRules for Parser {
 
     fn with_statement(&mut self) -> Result<Box<AST>, String> {
         todo!()
+    }
+
+    fn with_element(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn guard(&mut self) -> Result<Box<AST>, String> {
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Colon => {
+                self.advance();
+                Ok(Box::new(AST::Guard(left, self.qualident()?)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `:` in guard of `with` statement.", self.line, self.column, self.source))
+        }
     }
 
     fn loop_statement(&mut self) -> Result<Box<AST>, String> {
