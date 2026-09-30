@@ -120,6 +120,10 @@ pub enum AST {
     StatementSequence(Vec<Box<AST>>),
     Assignment(Box<AST>, Box<AST>),
     ProcedureCall(Box<AST>, Box<AST>),
+    LoopStatement(Box<AST>),
+    IfStatement(Box<AST>, Box<AST>, Vec<Box<AST>>, Option<Box<AST>>),
+    ElsifStatement(Box<AST>, Box<AST>),
+    ElseStatement(Box<AST>),
 }
 
 
@@ -145,6 +149,8 @@ pub trait ParseRules {
     /* Statement parse rules */
     fn statement(&mut self) -> Result<Box<AST>, String>;
     fn if_statement(&mut self) -> Result<Box<AST>, String>;
+    fn elsif_statement(&mut self) -> Result<Box<AST>, String>;
+    fn else_statement(&mut self) -> Result<Box<AST>, String>;
     fn case_tatement(&mut self) -> Result<Box<AST>, String>;
     fn with_statement(&mut self) -> Result<Box<AST>, String>;
     fn loop_statement(&mut self) -> Result<Box<AST>, String>;
@@ -153,7 +159,6 @@ pub trait ParseRules {
     fn while_statement(&mut self) -> Result<Box<AST>, String>;
     fn repeat_statement(&mut self) -> Result<Box<AST>, String>;
     fn for_statement(&mut self) -> Result<Box<AST>, String>;
-    fn procedure_call(&mut self) -> Result<Box<AST>, String>;
     fn assignment(&mut self) -> Result<Box<AST>, String>;
     fn statement_sequence(&mut self) -> Result<Box<AST>, String>;
 }
@@ -547,6 +552,39 @@ impl ParseRules for Parser {
     }
 
     fn if_statement(&mut self) -> Result<Box<AST>, String> {
+        self.advance();
+        let left = self.expression()?;
+        match self.symbol {
+            Symbols::Then => {
+                self.advance();
+                let right = self.statement_sequence()?;
+                let mut nodes = Vec::<Box<AST>>::new();
+                loop {
+                    match self.symbol {
+                        Symbols::Elsif => {
+                            nodes.push(self.elsif_statement()?);
+                        },
+                        _ => { break; }
+                    }
+                }
+                let node = match self.symbol {
+                    Symbols::Else => {
+                        Some(self.else_statement()?)
+                    },
+                    _ => None
+                };
+
+                Ok(Box::new(AST::IfStatement(left, right, nodes, node)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `THEM` in if statement.", self.line, self.column, self.source))
+        }
+    }
+
+    fn elsif_statement(&mut self) -> Result<Box<AST>, String> {
+        todo!()
+    }
+
+    fn else_statement(&mut self) -> Result<Box<AST>, String> {
         todo!()
     }
 
@@ -559,7 +597,15 @@ impl ParseRules for Parser {
     }
 
     fn loop_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        let node = self.statement_sequence()?;
+        match self.symbol {
+            Symbols::End => {
+                self.advance();
+                Ok(Box::new(AST::LoopStatement(node)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `END` in loop statement.", self.line, self.column, self.source))
+        }
     }
 
     fn exit_statement(&mut self) -> Result<Box<AST>, String> {
@@ -579,10 +625,6 @@ impl ParseRules for Parser {
     }
 
     fn for_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
-    }
-
-    fn procedure_call(&mut self) -> Result<Box<AST>, String> {
         todo!()
     }
 
