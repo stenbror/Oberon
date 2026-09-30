@@ -132,6 +132,9 @@ pub enum AST {
     Guard(Box<AST>, Box<AST>),
     WhileStatement(Box<AST>, Box<AST>, Option<Box<AST>>),
     RepeatStatement(Box<AST>, Box<AST>),
+    ReturnStatement(Option<Box<AST>>),
+    Exit,
+    Continue
 }
 
 
@@ -691,11 +694,29 @@ impl ParseRules for Parser {
     }
 
     fn exit_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        Ok(Box::new(AST::Exit))
     }
 
     fn return_statement(&mut self) -> Result<Box<AST>, String> {
-        todo!()
+        self.advance();
+        match self.symbol {
+            Symbols::Semicolon |
+            Symbols::If |
+            Symbols::Elsif |
+            Symbols::Else |
+            Symbols::Case |
+            Symbols::With |
+            Symbols::Loop |
+            Symbols::Exit |
+            Symbols::Continue |
+            Symbols::Return |
+            Symbols::While |
+            Symbols::Repeat |
+            Symbols::For |
+            Symbols::End => Ok(Box::new(AST::ReturnStatement(None))),
+            _ => Ok(Box::new(AST::ReturnStatement(Some(self.expression()?))))
+        }
     }
 
     fn while_statement(&mut self) -> Result<Box<AST>, String> {
