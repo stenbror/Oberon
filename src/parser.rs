@@ -140,6 +140,7 @@ pub enum AST {
     CaseLabelList(Vec<Box<AST>>),
     CaseLabelRange(Box<AST>, Box<AST>),
     IdentDef(Box<AST>, bool, bool), // ident is Read / write , is read only
+    ConstDeclaration(Box<AST>, Box<AST>),
 }
 
 
@@ -185,6 +186,7 @@ pub trait ParseRules {
     fn statement_sequence(&mut self) -> Result<Box<AST>, String>;
 
     fn ident_def(&mut self) -> Result<Box<AST>, String>;
+    fn const_Declaration(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -948,7 +950,7 @@ impl ParseRules for Parser {
         }
     }
 
-    /* Type declaration parts */
+    /* Declaration parts - const, var and type */
     fn ident_def(&mut self) -> Result<Box<AST>, String> {
         match self.symbol {
             Symbols::Ident => {
@@ -968,7 +970,18 @@ impl ParseRules for Parser {
                     }
                 }
             },
-            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name in `type` declaration.", self.line, self.column, self.source))
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name in declaration.", self.line, self.column, self.source))
+        }
+    }
+
+    fn const_Declaration(&mut self) -> Result<Box<AST>, String> {
+        let left = self.ident_def()?;
+        match self.symbol {
+            Symbols::Equal => {
+                self.advance();
+                Ok(Box::new(AST::ConstDeclaration(left, self.expression()?)))
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing `=` in const declaration.", self.line, self.column, self.source))
         }
     }
 
