@@ -138,7 +138,8 @@ pub enum AST {
     CaseStatement(Box<AST>, Vec<Box<AST>>, Option<Box<AST>>),
     CaseElement(Box<AST>, Box<AST>),
     CaseLabelList(Vec<Box<AST>>),
-    CaseLabelRange(Box<AST>, Box<AST>)
+    CaseLabelRange(Box<AST>, Box<AST>),
+    IdentDef(Box<AST>, bool, bool), // ident is Read / write , is read only
 }
 
 
@@ -182,6 +183,8 @@ pub trait ParseRules {
     fn for_statement(&mut self) -> Result<Box<AST>, String>;
     fn assignment(&mut self) -> Result<Box<AST>, String>;
     fn statement_sequence(&mut self) -> Result<Box<AST>, String>;
+
+    fn ident_def(&mut self) -> Result<Box<AST>, String>;
 }
 
 
@@ -942,6 +945,30 @@ impl ParseRules for Parser {
         match nodes.len() {
              1 => nodes.pop().ok_or(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing statement in sequence.", self.line, self.column, self.source)),
              _ => Ok(Box::new(AST::StatementSequence(nodes)))
+        }
+    }
+
+    /* Type declaration parts */
+    fn ident_def(&mut self) -> Result<Box<AST>, String> {
+        match self.symbol {
+            Symbols::Ident => {
+                let col = self.column; let line = self.line; let buffer = self.buffer.clone();
+                self.advance();
+                match self.symbol {
+                    Symbols::Multiply => {
+                        self.advance();
+                        Ok(Box::new(AST::IdentDef(Box::new(AST::Name(line, col, buffer)), true, false)))
+                    },
+                    Symbols::Minus => {
+                        self.advance();
+                        Ok(Box::new(AST::IdentDef(Box::new(AST::Name(line, col, buffer)), false, true)))
+                    },
+                    _ => {
+                        Ok(Box::new(AST::Name(line, col, buffer)))
+                    }
+                }
+            },
+            _ => Err(format!("Syntax Error! At line: {}, column: {} in file: {} - Missing Name in `type` declaration.", self.line, self.column, self.source))
         }
     }
 
